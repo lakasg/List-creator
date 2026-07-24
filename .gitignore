@@ -1,0 +1,41 @@
+# The live vessel database. This is data, not code - it is created and filled
+# automatically on first run, and on the server it holds the vessels you have
+# added since. Keeping it out of git means deploying an update can never
+# overwrite your live vessel list.
+listcreator.db
+listcreator.db-journal
+*.sqlite
+*.sqlite3
+
+# Backups
+backups/
+*.db.bak
+
+# Loading lists and generated documents - operational data, some of it
+# commercially sensitive. It does not belong in a code repository.
+*.csv
+*.docx
+!tests/fixtures/*.csv
+!tests/fixtures/*.docx
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Anything holding a secret. LIST_SECRET belongs in the systemd unit on the
+# server, never in the repository.
+.env
+*.pem
+*.key
+secrets.*

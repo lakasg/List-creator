@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}List Creator{% endblock %}</title>
+<style>
+  /* System fonts only - this runs on a terminal LAN that may have no
+     route to the internet, so nothing is fetched from a font CDN. */
+  :root{
+    --steel:#13303C;
+    --deck:#1B4152;
+    --edge:#2C5C70;
+    --paint:#E9EBE7;
+    --hivis:#F2C230;
+    --rust:#C1462E;
+    --sea:#4E97A6;
+    --display:"Helvetica Neue Condensed","Arial Narrow",
+              "Roboto Condensed",Helvetica,Arial,sans-serif;
+    --body:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Consolas,"DejaVu Sans Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--steel);color:var(--paint);
+    font-family:var(--body);font-size:16px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px 72px}
+
+  /* Masthead: the yellow rule is the deck stripe you see on a quay edge. */
+  header{border-bottom:3px solid var(--hivis);margin-bottom:40px}
+  header .bar{display:flex;align-items:baseline;gap:14px;
+              padding:28px 0 18px}
+  h1{
+    font-family:var(--display);font-size:40px;line-height:1;margin:0;
+    letter-spacing:.06em;text-transform:uppercase;font-weight:700;
+  }
+  .tag{font-family:var(--mono);font-size:12px;color:var(--sea);
+       letter-spacing:.14em;text-transform:uppercase}
+  h1 a{color:inherit;text-decoration:none}
+  header nav{margin-left:auto}
+  header nav a{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--paint);text-decoration:none;
+    border-bottom:2px solid transparent;padding-bottom:3px}
+  header nav a:hover{border-bottom-color:var(--hivis)}
+
+  h2{font-family:var(--display);font-size:24px;letter-spacing:.04em;
+     text-transform:uppercase;margin:0 0 6px}
+  p{margin:0 0 18px;max-width:62ch}
+  .muted{color:#9FB3BC}
+  a{color:var(--sea)}
+
+  .panel{background:var(--deck);border:1px solid var(--edge);
+         padding:26px;margin-bottom:22px}
+
+  label{display:block;font-family:var(--mono);font-size:11px;
+        letter-spacing:.14em;text-transform:uppercase;color:var(--hivis);
+        margin-bottom:8px}
+  .field{margin-bottom:24px}
+  input[type=text],select,textarea,input[type=file]{
+    width:100%;padding:12px 14px;background:var(--steel);
+    color:var(--paint);border:1px solid var(--edge);border-radius:0;
+    font-family:var(--body);font-size:16px;
+  }
+  textarea{font-family:var(--mono);font-size:14px;resize:vertical}
+  select{appearance:none;background-image:
+    linear-gradient(45deg,transparent 50%,var(--hivis) 50%),
+    linear-gradient(135deg,var(--hivis) 50%,transparent 50%);
+    background-position:calc(100% - 20px) 20px,calc(100% - 14px) 20px;
+    background-size:6px 6px,6px 6px;background-repeat:no-repeat;
+    padding-right:44px}
+  input:focus,select:focus,textarea:focus{
+    outline:2px solid var(--hivis);outline-offset:1px}
+  .hint{font-size:13px;color:#9FB3BC;margin:8px 0 0}
+
+  button,.btn{
+    display:inline-block;font-family:var(--display);font-size:17px;
+    letter-spacing:.08em;text-transform:uppercase;font-weight:700;
+    padding:14px 30px;border:0;border-radius:0;cursor:pointer;
+    background:var(--hivis);color:var(--steel);text-decoration:none;
+  }
+  button:hover,.btn:hover{background:#FFD84D}
+  .btn.ghost{background:transparent;color:var(--paint);
+             border:1px solid var(--edge)}
+  .btn.ghost:hover{background:var(--edge)}
+  .actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+  .flash{border-left:4px solid var(--rust);background:#2A2320;
+         padding:14px 18px;margin-bottom:22px}
+
+  /* Bay strip - a stowage profile of where the containers actually landed.
+     Grey = inside the selected vessel's ranges, red = fell outside. */
+  .strip{display:flex;flex-wrap:wrap;gap:4px;margin:22px 0 6px}
+  .bay{font-family:var(--mono);font-size:13px;min-width:38px;
+       text-align:center;padding:8px 4px;background:var(--edge);
+       color:#CFE0E6}
+  .bay.stray{background:var(--rust);color:#fff;font-weight:700}
+  /* An uncovered bay is not automatically a fault - most vessels skip the
+     even bays between groups. Shown quietly, not as an alarm. */
+  .bay.gap{background:transparent;border:1px dashed var(--edge);color:#7C949E}
+  .key{display:flex;gap:20px;font-family:var(--mono);font-size:11px;
+       letter-spacing:.1em;text-transform:uppercase;color:#9FB3BC;
+       margin-bottom:4px}
+  .key i{display:inline-block;width:12px;height:12px;margin-right:6px;
+         vertical-align:-1px}
+  .key .ok{background:var(--edge)}
+  .key .no{background:var(--rust)}
+
+  .alert h2{color:var(--rust)}
+  .big{font-family:var(--display);font-size:56px;line-height:1;
+       color:var(--rust);margin:0}
+  .big small{display:block;font-family:var(--mono);font-size:12px;
+             letter-spacing:.14em;text-transform:uppercase;color:#9FB3BC;
+             margin-top:8px}
+
+  footer{border-top:1px solid var(--edge);margin-top:44px;padding-top:18px;
+         font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+         text-transform:uppercase;color:#6E8894}
+
+  @media (prefers-reduced-motion:no-preference){
+    .panel{animation:rise .3s ease-out both}
+    @keyframes rise{from{opacity:0;transform:translateY(6px)}}
+  }
+  @media (max-width:560px){ h1{font-size:30px} .big{font-size:44px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="bar">
+      <h1><a href="{{ url_for('index') }}">List Creator</a></h1>
+      <span class="tag">Loading list &rarr; bay list</span>
+      <nav><a href="{{ url_for('vessels') }}">Vessels</a></nav>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+
+  <footer>Same analysis as the desktop version &middot; output opens in Word</footer>
+</div>
+</body>
+</html>

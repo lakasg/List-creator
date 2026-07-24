@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Vessels — List Creator{% endblock %}
+{% block content %}
+
+<div class="panel">
+  <div class="rowhead">
+    <h2>Vessels</h2>
+    <a class="btn" href="{{ url_for('vessel_form') }}">Add vessel</a>
+  </div>
+  <p class="muted">The bay groupings each vessel is split into. The order of
+     the ranges matters — the first one that contains a bay wins.</p>
+</div>
+
+{% for v in vessels %}
+  {% set g = gaps(v.ranges) %}
+  {% set o = overlaps(v.ranges) %}
+  <div class="panel vessel">
+    <div class="rowhead">
+      <h3>{{ v.name }}{% if not v.active %} <span class="off">not in use</span>{% endif %}</h3>
+      <div class="actions">
+        <a class="btn ghost sm" href="{{ url_for('vessel_form', vessel_id=v.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('vessel_delete', vessel_id=v.id) }}"
+              onsubmit="return confirm('Remove {{ v.name }}? Lists already made are not affected.')">
+          <button class="btn ghost sm" type="submit">Remove</button>
+        </form>
+      </div>
+    </div>
+
+    <p class="ranges">{{ v.ranges_text }}</p>
+
+    {% if o %}
+      <p class="warn">Bays {{ o|join(', ') }} appear in more than one range.
+         The earlier range wins, so the later one never matches for those
+         bays.</p>
+    {% endif %}
+    {% if g %}
+      <p class="muted small">Not in any range: {{ g|join(', ') }}</p>
+    {% endif %}
+
+    {% if v.notes %}<p class="muted small">{{ v.notes }}</p>{% endif %}
+  </div>
+{% endfor %}
+
+<style>
+  .rowhead{display:flex;justify-content:space-between;align-items:center;
+           gap:16px;flex-wrap:wrap;margin-bottom:10px}
+  .rowhead h2,.rowhead h3{margin:0}
+  h3{font-family:var(--display);font-size:19px;letter-spacing:.05em;
+     text-transform:uppercase}
+  .btn.sm{padding:8px 16px;font-size:13px}
+  .vessel{padding:20px 24px}
+  .ranges{font-family:var(--mono);font-size:14px;color:#CFE0E6;margin:0}
+  .warn{border-left:3px solid var(--hivis);padding-left:12px;margin:14px 0 0;
+        font-size:14px;color:#E4D9B4}
+  .off{font-family:var(--mono);font-size:11px;color:var(--rust);
+       letter-spacing:.1em}
+  .small{font-size:13px;margin:10px 0 0}
+  .rowhead form{display:inline;margin:0}
+</style>
+{% endblock %}
