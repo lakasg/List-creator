@@ -1,4 +1,11 @@
-Flask>=3.0
-pandas>=2.0
-python-docx>=1.1
-gunicorn>=21.2
+# Upper bounds matter here. The whole point of this app is that its output
+# never changes, and an unpinned dependency means a redeploy in six months
+# could quietly pull a new major version of pandas and group containers
+# differently. These ranges allow bug fixes and block surprises.
+#
+# After any upgrade, run:  python verify.py <csv> "<vessel>" <reference.docx>
+# That is the real safeguard - the pins just stop it happening by accident.
+Flask>=3.0,<4
+pandas>=2.2,<4
+python-docx>=1.1,<2
+gunicorn>=21.2,<24
