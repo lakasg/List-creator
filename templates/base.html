@@ -1,3 +1,59 @@
+  GNU nano 8.4                                                                                                                                                base.html                                                                                                                                                         
+       text-align:center;padding:8px 4px;background:var(--edge);
+       color:#CFE0E6}
+  .bay.stray{background:var(--rust);color:#fff;font-weight:700}
+  /* An uncovered bay is not automatically a fault - most vessels skip the
+     even bays between groups. Shown quietly, not as an alarm. */
+  .bay.gap{background:transparent;border:1px dashed var(--edge);color:#7C949E}
+  .key{display:flex;gap:20px;font-family:var(--mono);font-size:11px;
+       letter-spacing:.1em;text-transform:uppercase;color:#9FB3BC;
+       margin-bottom:4px}
+  .key i{display:inline-block;width:12px;height:12px;margin-right:6px;
+         vertical-align:-1px}
+  .key .ok{background:var(--edge)}
+  .key .no{background:var(--rust)}
+
+  .alert h2{color:var(--rust)}
+  .big{font-family:var(--display);font-size:56px;line-height:1;
+       color:var(--rust);margin:0}
+  .big small{display:block;font-family:var(--mono);font-size:12px;
+             letter-spacing:.14em;text-transform:uppercase;color:#9FB3BC;
+             margin-top:8px}
+
+  footer{border-top:1px solid var(--edge);margin-top:44px;padding-top:18px;
+         font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+         text-transform:uppercase;color:#6E8894}
+
+  @media (prefers-reduced-motion:no-preference){
+    .panel{animation:rise .3s ease-out both}
+    @keyframes rise{from{opacity:0;transform:translateY(6px)}}
+  }
+  @media (max-width:560px){ h1{font-size:30px} .big{font-size:44px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="bar">
+      <h1><a href="{{ url_for('index') }}">List Creator</a></h1>
+      <span class="tag">Loading list &rarr; bay list</span>
+      <nav><a href="{{ url_for('vessels') }}">Vessels</a></nav>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+
+  <footer>Developed by lakasg. &copy; 2026. All rights reserved.</footer>
+</div>
+</body>
+</html>
+
 <!doctype html>
 <html lang="en">
 <head>
