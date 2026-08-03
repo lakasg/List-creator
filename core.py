@@ -268,6 +268,10 @@ class ListLogic:
             return 'SQ1'
         if 'SQ2' in y:
             return 'SQ2'
+        if 'WQ1' in y:
+            return 'WQ1'
+        if 'WQ2' in y:
+            return 'WQ2'
         if 'F' in y:
             return 'F'
         if y == '':
@@ -277,7 +281,7 @@ class ListLogic:
 
     # ---------- Bay range mapping ----------
     def get_custom_bay_range(self, bay, out_stow_loc, config):
-        predefined_ranges = ['SP2', 'SP1', 'SQ1', 'SQ2', 'TA1','F','TA5','SSS']
+        predefined_ranges = ['SP2', 'SP1', 'SQ1', 'SQ2', 'TA1','F','TA5','WQ1','WQ2','SSS']
 
         if str(bay) in predefined_ranges:
             return f"Bay {str(bay)}"
