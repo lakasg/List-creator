@@ -12,11 +12,11 @@
     <label for="vessel">Bay configuration</label>
     <select id="vessel" name="vessel" required>
       {% for v in vessels %}
-        <option value="{{ v }}"{% if v == 'CONTSHIP VOW' %} selected{% endif %}>{{ v }}</option>
+        <option value="{{ v }}"{% if v == '1-3, 5-7, Generic' %} selected{% endif %}>{{ v }}</option>
       {% endfor %}
     </select>
     <p class="hint">The vessel decides how bays are grouped. Pick the wrong
-       one and the containers land in an <em>Other</em> pile — the next screen
+       one and the containers land in an <em>Other</em> pile  ^`^t the next screen
        will stop you before that reaches the quay.</p>
   </div>
 
@@ -29,7 +29,7 @@
 
   <div class="field">
     <label for="name">File name</label>
-    <input type="text" id="name" name="name" placeholder="4743 CONTSHIP VOW">
+    <input type="text" id="name" name="name" placeholder="VESSEL NAME">
     <p class="hint">Also printed as the heading at the top of the list.</p>
   </div>
 
@@ -52,3 +52,4 @@
   sync();
 </script>
 {% endblock %}
+
