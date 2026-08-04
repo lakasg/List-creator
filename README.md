@@ -862,6 +862,212 @@ Merge the change through GitHub, then update production using the deployment ste
 
 Avoid editing tracked files directly on the production server.
 
+## Input CSV format
+
+List Creator expects a CSV file containing container loading information.
+
+The column names are case-sensitive and must match the names shown below.
+
+### Required columns
+
+| Column       | Description                                                           | Example       |
+| ------------ | --------------------------------------------------------------------- | ------------- |
+| `OutStowLoc` | Vessel stowage location. The bay number is extracted from this value. | `280182`      |
+| `YardLoc`    | Current yard or operational location of the container.                | `A 138 024 1` |
+| `ISOCD`      | Container ISO size and type code.                                     | `45G1`        |
+| `POD`        | Port of discharge.                                                    | `LIM`         |
+| `OutDate`    | Outbound or loading date. May be empty for some position types.       | `2026-08-04`  |
+
+The application rejects files that do not contain all five required columns.
+
+### Optional columns
+
+| Column             | Description                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `Container`        | Container number. Used when identifying containers with a missing `OutStowLoc`.            |
+| Additional columns | Other columns may remain in the CSV. They are ignored unless used by the processing logic. |
+
+### Example CSV
+
+```csv
+Container,OutStowLoc,YardLoc,ISOCD,POD,OutDate
+MSCU1234567,280182,A 138 024 1,45G1,LIM,2026-08-04
+TCLU7654321,120184,E1 075 031 1,22G1,PIR,2026-08-04
+CMAU1122334,060182,TA1,42G1,BEY,2026-08-04
+OOLU9988776,100184,SSS,45P3,ASH,
+```
+
+### Column details
+
+#### `OutStowLoc`
+
+`OutStowLoc` represents the vessel stowage position.
+
+The application determines the bay by removing the last four digits.
+
+For example:
+
+```text
+280182 → Bay 28
+120184 → Bay 12
+060182 → Bay 6
+```
+
+The value may be stored as text or as a number.
+
+A missing or empty `OutStowLoc` is classified as `Unknown`.
+
+#### `YardLoc`
+
+`YardLoc` is used to determine the position or operational area of the container.
+
+Examples include:
+
+```text
+A 138 024 1
+B 110 019 1
+E1 075 031 1
+TA1
+TA5
+SSS
+```
+
+Locations containing common yard identifiers such as `A`, `B`, `C`, `FP`, or `R` are generally grouped as yard containers.
+
+Locations beginning with an E-area format may include structured values such as:
+
+```text
+E1 075 031 1
+```
+
+Spacing may vary because the parser accepts one or more spaces between these components.
+
+#### `ISOCD`
+
+`ISOCD` is the container ISO code.
+
+The application applies the following groupings:
+
+| ISO code prefix            | Report group          |
+| -------------------------- | --------------------- |
+| `L`                        | `45 Feet`             |
+| `45G`                      | `High Cube`           |
+| `42G`                      | `Xamila`              |
+| `45P`, `42P`, `22P`, `25P` | `FLAT`                |
+| Other values               | The original ISO code |
+
+Examples:
+
+```text
+45G1
+42G1
+22G1
+45P3
+```
+
+#### `POD`
+
+`POD` is the port-of-discharge code shown in the generated report.
+
+Examples:
+
+```text
+LIM
+PIR
+BEY
+ASH
+```
+
+The application groups report entries by:
+
+* Vessel bay range
+* ISO code group
+* Position type
+* Port of discharge
+
+#### `OutDate`
+
+`OutDate` is used when determining the container position type.
+
+The application accepts the value as provided by the CSV. Empty values are allowed, although their meaning depends on the associated `YardLoc`.
+
+Use a consistent date format in each file, preferably:
+
+```text
+YYYY-MM-DD
+```
+
+Example:
+
+```text
+2026-08-04
+```
+
+### CSV requirements
+
+The uploaded file should meet these requirements:
+
+* The first row must contain column headers.
+* Required column names must use the exact spelling and capitalization.
+* The file should use comma-separated values.
+* Each row should represent one container.
+* Empty values should remain empty rather than containing placeholder text.
+* The maximum upload size is 32 MB.
+* The file should be saved using UTF-8 encoding where possible.
+
+A minimal valid CSV is:
+
+```csv
+OutStowLoc,YardLoc,ISOCD,POD,OutDate
+280182,A 138 024 1,45G1,LIM,2026-08-04
+```
+
+### Common CSV errors
+
+#### Missing required column
+
+The application displays an error such as:
+
+```text
+The CSV is missing these columns: OutStowLoc, POD
+```
+
+Check that the headers use the exact required names.
+
+#### Incorrect delimiter
+
+A semicolon-separated file may be read as a single column.
+
+Incorrect:
+
+```csv
+OutStowLoc;YardLoc;ISOCD;POD;OutDate
+```
+
+Correct:
+
+```csv
+OutStowLoc,YardLoc,ISOCD,POD,OutDate
+```
+
+#### Spreadsheet software changes the values
+
+Spreadsheet applications may:
+
+* Remove leading zeroes
+* Convert stowage locations to numbers
+* Change date formats
+* Export using semicolons instead of commas
+
+Review the exported CSV in a text editor before uploading it.
+
+#### Missing stowage location
+
+Rows with an empty `OutStowLoc` are included in the generated report under the `Unknown Containers` section.
+
+When the optional `Container` column is present, the container number is shown alongside the warning.
+
+
 ---
 
 ## License
