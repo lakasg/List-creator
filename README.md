@@ -1,82 +1,328 @@
-# List Creator — web version
+# List Creator
 
-The desktop List Creator, running as a service on your Proxmox server.
+List Creator is a Flask web application for generating Microsoft Word container loading reports from CSV loading-list exports.
 
-The analysis is unchanged. `core.py` is a straight copy of lines 152–537 of
-`list-4-3.py` — the document builder and every helper, including all 22 bay
-configurations. Nothing in it was retyped or tidied. The web layer only
-handles upload, vessel choice, and download.
+The application allows an operator to:
 
-Verified against your CONTSHIP VOW list: 170 runs, identical text, font
-sizes, bold, underline and POD colours.
+* Upload a loading-list CSV file
+* Select a vessel configuration
+* Validate container bay assignments
+* Identify containers assigned to unknown or uncovered bays
+* Generate and download a formatted `.docx` report
+* Add, edit, retire, and manage vessel configurations through the browser
 
-## Files
+The project is designed to run as a lightweight internal web service on Linux.
 
-| File | What it does |
-|---|---|
-| `core.py` | The analysis. Unchanged except for where bay ranges are looked up. |
-| `db.py` | The vessel database (SQLite) |
-| `app.py` | Upload, vessel selection, pre-flight check, download, vessel admin |
-| `templates/` | The five pages |
-| `seed_data.py` | The original 22 configurations, used once to fill an empty database |
-| `legacy_reference.py` | Frozen copy of the old bay-range code, for testing only |
-| `verify.py` | Proves the document still matches the desktop version |
-| `verify_configs.py` | Proves the database answers the same as the old hard-coded configs |
-| `requirements.txt` | Dependencies |
+---
 
-## Vessels
+## Features
 
-Vessels live in `listcreator.db`, a single SQLite file next to the app. The
-first time the app starts it creates that file and fills it with the 22
-configurations from the desktop version.
+* Browser-based loading-list processing
+* CSV upload and validation
+* Vessel-specific bay configuration
+* Microsoft Word report generation
+* Pre-flight bay assignment check
+* Detection of unknown or unmatched container positions
+* Vessel configuration management
+* SQLite database
+* Gunicorn production server support
+* Nginx reverse-proxy support
+* systemd service configuration
+* Verification scripts for report and vessel configuration testing
 
-Add, edit and retire vessels at **/vessels** in the browser. Ranges are typed
-the way you already know them: `1-3, 5-7, 9, 11-13`. The order matters — the
-first range containing a bay is the one used — so they are stored and applied
-in the order you type them.
+---
 
-Retiring a vessel hides it from the dropdown without deleting it. Lists
-already produced are never affected by any of this.
+## How it works
 
-**Back up** by copying `listcreator.db`. That one file is all your vessel
-data.
+A user uploads a loading-list CSV file and selects the appropriate vessel.
 
-### Why SQLite
+List Creator processes the data, assigns each container to a configured vessel bay range, and checks for containers that cannot be matched correctly.
 
-A couple of dozen vessels, one person editing, a handful of reads per list.
-SQLite needs no server, no password and no maintenance, and it backs up by
-copying a file. Everything vessel-related goes through `db.py`, so moving to
-MySQL later means rewriting that one file and nothing else.
+If unmatched containers are detected, the application displays a warning before generating the report. The user can review the affected bays and decide whether to continue.
 
-## Run it locally first
+The final result is generated as a Microsoft Word document.
+
+---
+
+## Technology
+
+* Python
+* Flask
+* pandas
+* python-docx
+* SQLite
+* Gunicorn
+* Jinja2
+* Nginx
+* systemd
+
+---
+
+## Project structure
+
+```text
+List-creator/
+├── app.py
+├── core.py
+├── db.py
+├── seed_data.py
+├── legacy_reference.py
+├── verify.py
+├── verify_configs.py
+├── requirements.txt
+├── deploy.sh
+├── update.sh
+├── templates/
+├── README.md
+├── DEPLOY.md
+└── GITHUB.md
+```
+
+### Main files
+
+| File                  | Purpose                                                                          |
+| --------------------- | -------------------------------------------------------------------------------- |
+| `app.py`              | Flask application, routes, uploads, downloads, validation, and vessel management |
+| `core.py`             | Loading-list processing and Word document generation                             |
+| `db.py`               | SQLite database access and vessel configuration management                       |
+| `seed_data.py`        | Initial vessel configuration data                                                |
+| `templates/`          | HTML templates used by the web interface                                         |
+| `verify.py`           | Verifies generated report output                                                 |
+| `verify_configs.py`   | Verifies vessel bay configuration behaviour                                      |
+| `legacy_reference.py` | Reference implementation used by verification tools                              |
+| `requirements.txt`    | Python dependencies                                                              |
+| `deploy.sh`           | Deployment helper script                                                         |
+| `update.sh`           | Application update helper script                                                 |
+
+---
+
+## Requirements
+
+For local use:
+
+* Python 3.10 or newer
+* `python3-venv`
+* `python3-pip`
+
+For production deployment:
+
+* Debian or Ubuntu
+* Python 3
+* Gunicorn
+* Nginx
+* systemd
+* Git
+
+A small server or virtual machine is sufficient for normal internal use.
+
+Suggested minimum resources:
+
+* 2 CPU cores
+* 2 GB RAM
+* 8 GB storage
+
+---
+
+## Local installation
+
+Clone the repository:
 
 ```bash
-python -m venv venv
+git clone https://github.com/lakasg/List-creator.git
+cd List-creator
+```
+
+Create a Python virtual environment:
+
+```bash
+python3 -m venv venv
+```
+
+Activate it:
+
+```bash
 source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Start the application:
+
+```bash
 python app.py
 ```
 
-Open <http://localhost:8000>.
+Open:
 
-## Deploy on Proxmox
+```text
+http://localhost:8000
+```
 
-An LXC container is plenty — this is a few seconds of pandas per list.
-Debian 12, 2 vCPU, 2 GB RAM, 8 GB disk.
+---
+
+## Database
+
+Vessel configurations are stored in a local SQLite database:
+
+```text
+listcreator.db
+```
+
+If the database does not exist, the application creates it and loads the initial vessel configurations.
+
+The database normally remains outside Git and should not be committed to the repository.
+
+### Backing up the database
+
+Stop or briefly pause application writes before copying the database.
 
 ```bash
-# in the container
-apt update && apt install -y python3 python3-venv python3-pip nginx
-adduser --system --group --home /opt/listcreator listcreator
+cp listcreator.db listcreator.db.backup
+```
 
-# copy the files to /opt/listcreator, then
-cd /opt/listcreator
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
+A timestamped backup can be created with:
+
+```bash
+cp listcreator.db \
+  "listcreator.db.backup-$(date +%Y-%m-%d_%H-%M-%S)"
+```
+
+The database contains the vessel definitions managed through the application.
+
+---
+
+## Vessel configuration
+
+Vessels can be managed from:
+
+```text
+/vessels
+```
+
+The vessel administration interface supports:
+
+* Adding a vessel
+* Editing a vessel
+* Defining bay ranges
+* Retiring a vessel
+* Restoring a retired vessel
+
+Example bay configuration:
+
+```text
+1-3, 5-7, 9, 11-13
+```
+
+Ranges are evaluated in the order they are stored.
+
+Retiring a vessel removes it from normal selection without deleting its database record.
+
+---
+
+## Production deployment
+
+The following example deploys the application to:
+
+```text
+/opt/listcreator
+```
+
+### 1. Install system packages
+
+```bash
+apt update
+apt install -y \
+  git \
+  python3 \
+  python3-venv \
+  python3-pip \
+  nginx
+```
+
+---
+
+### 2. Create a service account
+
+Create a system user for the application:
+
+```bash
+adduser \
+  --system \
+  --group \
+  --home /opt/listcreator \
+  listcreator
+```
+
+The service account does not need interactive login access.
+
+---
+
+### 3. Clone the repository
+
+```bash
+git clone \
+  https://github.com/lakasg/List-creator.git \
+  /opt/listcreator
+```
+
+Set ownership:
+
+```bash
 chown -R listcreator:listcreator /opt/listcreator
 ```
 
-`/etc/systemd/system/listcreator.service`:
+---
+
+### 4. Create the virtual environment
+
+```bash
+cd /opt/listcreator
+python3 -m venv venv
+```
+
+Install dependencies:
+
+```bash
+runuser -u listcreator -- \
+  /opt/listcreator/venv/bin/pip install \
+  -r /opt/listcreator/requirements.txt
+```
+
+Restore ownership:
+
+```bash
+chown -R listcreator:listcreator /opt/listcreator
+```
+
+---
+
+### 5. Configure the application secret
+
+Generate a secure random value:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Store it in the systemd service configuration as `LIST_SECRET`.
+
+Do not publish production secrets in Git.
+
+---
+
+### 6. Create the systemd service
+
+Create:
+
+```text
+/etc/systemd/system/listcreator.service
+```
+
+Use:
 
 ```ini
 [Unit]
@@ -84,115 +330,543 @@ Description=List Creator
 After=network.target
 
 [Service]
+Type=simple
 User=listcreator
 Group=listcreator
 WorkingDirectory=/opt/listcreator
-Environment="LIST_SECRET=change-this-to-a-long-random-string"
+Environment="LIST_SECRET=replace-with-a-long-random-value"
 ExecStart=/opt/listcreator/venv/bin/gunicorn \
-    --workers 3 --timeout 120 --bind 127.0.0.1:8000 app:app
+    --workers 2 \
+    --timeout 120 \
+    --bind 127.0.0.1:8000 \
+    app:app
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
 
+Reload systemd:
+
 ```bash
-systemctl enable --now listcreator
-systemctl status listcreator
+systemctl daemon-reload
 ```
 
-`/etc/nginx/sites-available/listcreator`:
+Enable and start the application:
+
+```bash
+systemctl enable --now listcreator
+```
+
+Check the service:
+
+```bash
+systemctl status listcreator --no-pager -l
+```
+
+Test Gunicorn locally:
+
+```bash
+curl -I http://127.0.0.1:8000
+```
+
+Expected response:
+
+```text
+HTTP/1.1 200 OK
+```
+
+---
+
+## Nginx configuration
+
+Create:
+
+```text
+/etc/nginx/sites-available/listcreator
+```
+
+Example configuration:
 
 ```nginx
 server {
     listen 80;
-    server_name lists.yourdomain.local;
-    client_max_body_size 32M;   # must be at least as large as MAX_CONTENT_LENGTH
+    server_name lists.example.com;
+
+    client_max_body_size 32M;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
+
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 120;
+        proxy_send_timeout 120;
+        proxy_read_timeout 120;
     }
 }
 ```
 
-```bash
-ln -s /etc/nginx/sites-available/listcreator /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-```
-
-Take a Proxmox snapshot once it's working. Rolling back a bad change then
-takes seconds.
-
-## Check it after any change
+Enable the site:
 
 ```bash
-python verify_configs.py                                    # 36,250 checks
-python verify.py loading_list.csv "CONTSHIP VOW" reference_from_exe.docx
+ln -s \
+  /etc/nginx/sites-available/listcreator \
+  /etc/nginx/sites-enabled/listcreator
 ```
 
-`verify_configs.py` compares every vessel against a frozen copy of the old
-hard-coded code, across every bay from 0 to 120. If you have edited a vessel
-on purpose, that vessel will show as different — which is correct, and the
-run names it.
+Test the Nginx configuration:
 
-Exit code 0 means the output is identical to the desktop version. Generate
-the reference with the EXE and **do not open it in Word first** — Word
-rewrites the file, and your own edits will show up as differences.
+```bash
+nginx -t
+```
 
-Worth doing this after every Python or pandas upgrade. A library update is
-the most likely way the output could quietly drift.
+Reload Nginx:
 
-## The pre-flight check
+```bash
+systemctl reload nginx
+```
 
-This is the one behaviour the desktop version doesn't have.
+The application should now be available through the configured hostname.
 
-Before the download, every container is placed into its bay group using the
-same functions the report uses. If any land in `Other` or `Unknown`, the
-download is held back and a screen shows how many, which bays, and a strip
-of the whole vessel with the stray bays marked.
+---
 
-It exists because picking the wrong vessel doesn't fail — it produces a
-clean, professional-looking list with `Other` headings buried in the middle.
-On your test data, selecting BG BLUE instead of CONTSHIP VOW put 231 of 460
-containers into `Other`, and the document still looked entirely normal.
+## HTTPS
 
-You can still download anyway. It's a check, not a lock.
+For a public hostname, configure TLS using a trusted certificate provider such as Let's Encrypt.
 
-## Adding a vessel
+On Debian or Ubuntu, Certbot can be installed with:
 
-Go to **/vessels** and click **Add vessel**. Nothing to edit, nothing to
-restart.
+```bash
+apt install -y certbot python3-certbot-nginx
+```
 
-Note that this is now the parting of the ways with the desktop EXE: a vessel
-added here does not exist there. Once you are working from the web version,
-treat it as the only copy and stop using the EXE, otherwise the two will
-drift apart without anyone noticing.
+Request a certificate:
 
-## A trap carried over from the desktop version
+```bash
+certbot --nginx -d lists.example.com
+```
 
-If you use **Custom** and your ranges begin with `1-3, 5-7`, `1, 3-5` or
-`4-6, 8-10`, the app ignores what you typed and uses the built-in
-configuration of that name instead. This is what the desktop version has
-always done, so the behaviour was left alone — but the web version now tells
-you when it happens instead of silently producing a different list.
+Replace `lists.example.com` with the actual hostname.
 
-Adding a vessel avoids it entirely, because vessels are matched by name.
+For internal-only deployments, HTTPS can also be terminated by a reverse proxy, VPN gateway, or access tunnel.
 
-## Known quirks carried over deliberately
+---
 
-These are in the desktop version and were kept, because your output is
-correct as it stands and changing them would change the lists you already
-work from:
+## Updating an existing installation
 
-- In `get_position_type`, the generic yard test for `A`, `B`, `C`, `FP`, `R`
-  runs before the `E` test, so any yard location containing one of those
-  letters returns `Y`. The comment above it says the opposite.
-- The same function checks `SSS` against the raw value rather than the
-  upper-cased one just above it.
-- Rows classified `Other` are dropped from the report; rows with a missing
-  `OutStowLoc` are listed separately under Unknown Containers.
+Changes should normally be made on a development machine, committed, and pushed to GitHub before updating production.
 
-If you ever want these looked at, do it as its own change with `verify.py`
-runs on several vessels either side — not mixed in with anything else.
+Connect to the server:
+
+```bash
+ssh root@SERVER_IP
+```
+
+Go to the application directory:
+
+```bash
+cd /opt/listcreator
+```
+
+Check for local changes:
+
+```bash
+git status
+```
+
+Back up the database:
+
+```bash
+cp listcreator.db \
+  "listcreator.db.backup-$(date +%Y-%m-%d_%H-%M-%S)"
+```
+
+Pull the latest code:
+
+```bash
+git pull --rebase origin main
+```
+
+Install dependencies if `requirements.txt` changed:
+
+```bash
+runuser -u listcreator -- \
+  /opt/listcreator/venv/bin/pip install \
+  -r /opt/listcreator/requirements.txt
+```
+
+Restore ownership:
+
+```bash
+chown -R listcreator:listcreator /opt/listcreator
+```
+
+Test that the application imports correctly:
+
+```bash
+runuser -u listcreator -- \
+  /opt/listcreator/venv/bin/python \
+  -c "import app; print('App import OK')"
+```
+
+Restart the service:
+
+```bash
+systemctl restart listcreator
+```
+
+Wait for Gunicorn to start:
+
+```bash
+sleep 3
+```
+
+Check the service:
+
+```bash
+systemctl status listcreator --no-pager -l
+```
+
+Test the application:
+
+```bash
+curl -I http://127.0.0.1:8000
+```
+
+Check recent logs:
+
+```bash
+journalctl -u listcreator \
+  --since "5 minutes ago" \
+  --no-pager
+```
+
+---
+
+## Verification
+
+The repository includes verification utilities for checking report behaviour and vessel configurations.
+
+### Verify vessel configurations
+
+```bash
+source venv/bin/activate
+python verify_configs.py
+```
+
+This compares stored vessel configurations against the reference implementation.
+
+A configuration intentionally changed through the application may be reported as different from the original reference.
+
+### Verify report output
+
+```bash
+source venv/bin/activate
+python verify.py \
+  loading_list.csv \
+  "VESSEL NAME" \
+  reference.docx
+```
+
+Replace:
+
+* `loading_list.csv` with the source CSV file
+* `VESSEL NAME` with the vessel configuration
+* `reference.docx` with the expected report
+
+The reference document should be preserved unchanged before verification.
+
+---
+
+## Pre-flight validation
+
+Before generating a report, List Creator validates the bay assignments produced from the uploaded loading list.
+
+The validation screen may report containers assigned to:
+
+* `Other`
+* `Unknown`
+* Bays outside the selected vessel configuration
+
+This helps detect incorrect vessel selection or incomplete vessel configuration before the final report is generated.
+
+The warning does not permanently block report generation. The user can review the result and continue when appropriate.
+
+---
+
+## Running behind a proxy
+
+Gunicorn listens only on:
+
+```text
+127.0.0.1:8000
+```
+
+This means it is not directly accessible from other devices.
+
+External access should be provided through:
+
+* Nginx
+* Apache
+* Caddy
+* A VPN
+* A private reverse proxy
+* A secure access tunnel
+
+Do not expose the Flask development server directly to the internet.
+
+---
+
+## Logs
+
+Check the current service status:
+
+```bash
+systemctl status listcreator --no-pager -l
+```
+
+Show recent logs:
+
+```bash
+journalctl -u listcreator -n 100 --no-pager
+```
+
+Show logs from the last five minutes:
+
+```bash
+journalctl -u listcreator \
+  --since "5 minutes ago" \
+  --no-pager
+```
+
+Follow logs in real time:
+
+```bash
+journalctl -u listcreator -f
+```
+
+Press `Ctrl+C` to stop following logs.
+
+---
+
+## Troubleshooting
+
+### Internal Server Error
+
+Check the service logs:
+
+```bash
+journalctl -u listcreator -n 100 --no-pager
+```
+
+Test the application locally:
+
+```bash
+curl -I http://127.0.0.1:8000
+```
+
+A running systemd service can still return an HTTP 500 error if the application encounters a Python or template exception.
+
+---
+
+### Gunicorn does not start
+
+Check the service:
+
+```bash
+systemctl status listcreator --no-pager -l
+```
+
+Check whether port 8000 is listening:
+
+```bash
+ss -lntp | grep 8000
+```
+
+Test the application import:
+
+```bash
+cd /opt/listcreator
+
+runuser -u listcreator -- \
+  ./venv/bin/python \
+  -c "import app; print('App import OK')"
+```
+
+---
+
+### Permission errors
+
+Restore ownership:
+
+```bash
+chown -R listcreator:listcreator /opt/listcreator
+```
+
+Restart the service:
+
+```bash
+systemctl restart listcreator
+```
+
+---
+
+### Git reports dubious ownership
+
+When deployment commands are run as root, Git may reject the repository because it is owned by the `listcreator` service account.
+
+Trust the deployment directory:
+
+```bash
+git config --global \
+  --add safe.directory \
+  /opt/listcreator
+```
+
+---
+
+### Production contains local changes
+
+Check the changes:
+
+```bash
+git status
+git diff
+```
+
+Do not pull until the changes are understood.
+
+To discard unwanted changes to tracked files:
+
+```bash
+git restore .
+```
+
+Then pull again:
+
+```bash
+git pull --rebase origin main
+```
+
+This does not restore deleted ignored files such as the database or virtual environment.
+
+---
+
+### Missing Python module
+
+Install the current dependencies:
+
+```bash
+runuser -u listcreator -- \
+  /opt/listcreator/venv/bin/pip install \
+  -r /opt/listcreator/requirements.txt
+```
+
+Restart the service:
+
+```bash
+systemctl restart listcreator
+```
+
+---
+
+### Template error
+
+Check the logs for Jinja errors:
+
+```bash
+journalctl -u listcreator -n 100 --no-pager
+```
+
+Inspect template block declarations:
+
+```bash
+grep -R -n \
+  "block content\|block title" \
+  /opt/listcreator/templates
+```
+
+A single template must not define the same Jinja block more than once.
+
+---
+
+## Security notes
+
+* Do not commit `listcreator.db`.
+* Do not commit production secrets.
+* Do not run the application as root.
+* Run Gunicorn using the dedicated `listcreator` service account.
+* Keep Gunicorn bound to `127.0.0.1`.
+* Use Nginx or another reverse proxy for remote access.
+* Use HTTPS when the application is accessible outside a trusted network.
+* Limit access if uploaded loading lists contain operational or commercially sensitive information.
+* Keep Debian, Python, Nginx, and Python dependencies updated.
+* Back up the SQLite database regularly.
+
+---
+
+## Backup recommendations
+
+At minimum, back up:
+
+```text
+/opt/listcreator/listcreator.db
+```
+
+A complete server backup may also include:
+
+```text
+/opt/listcreator
+/etc/systemd/system/listcreator.service
+/etc/nginx/sites-available/listcreator
+```
+
+The source code can always be restored from GitHub, but the SQLite database contains local vessel configuration changes and should be backed up separately.
+
+---
+
+## Development workflow
+
+Create a branch:
+
+```bash
+git checkout -b feature/example
+```
+
+Make and review changes:
+
+```bash
+git status
+git diff
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "Describe the change"
+```
+
+Push:
+
+```bash
+git push -u origin feature/example
+```
+
+Merge the change through GitHub, then update production using the deployment steps above.
+
+Avoid editing tracked files directly on the production server.
+
+---
+
+## License
+
+No license has been specified for this repository.
+
+Without a license, the source code remains protected by default copyright rules and may not automatically be reused, modified, or redistributed by others.
+
